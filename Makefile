@@ -3,6 +3,7 @@
 # ---------------------------------------------------------
 
 .DEFAULT_GOAL := build
+VERSION := $(shell date +%Y-%m-%d-%H%M%S)
 
 # ---------------------------------------------------------
 # Build the artifact.
@@ -11,8 +12,8 @@
 .PHONY: build
 .SILENT: build
 
-build: 
-	go install -ldflags="-s -w" . 
+build:
+	go install -ldflags="-s -w -X 'github.com/deathlabs/pixie/cmd.version=$(VERSION)'" .
 
 # ---------------------------------------------------------
 # Update dependencies.

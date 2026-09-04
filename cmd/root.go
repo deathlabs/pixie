@@ -11,9 +11,11 @@ import (
 var (
 	inputFilePath  string
 	outputFilePath string
+	version        string // Default version, overridden by build flags.
 	rootCmd        = &cobra.Command{
-		Use:   "pixie",
-		Short: "Pixie is a CLI tool for converting YAML to XCCDF",
+		Use:     "pixie",
+		Short:   "Pixie is a CLI tool for converting YAML to XCCDF",
+		Version: version,
 	}
 )
 
