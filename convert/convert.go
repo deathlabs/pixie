@@ -25,35 +25,6 @@ var (
 	}
 )
 
-func convert(cmd *cobra.Command, args []string) error {
-	var (
-		inputFilePath  string
-		err            error
-		flags          *pflag.FlagSet
-		outputFilePath string
-	)
-
-	// Read the flags previously given to the provided the command.
-	flags = cmd.Flags()
-
-	// Get the input file path from the flag set.
-	inputFilePath, err = flags.GetString("input-file")
-	if err != nil {
-		return err
-	}
-
-	// Get the output file path from the flag set.
-	outputFilePath, err = flags.GetString("output-file")
-	if err != nil {
-		return err
-	}
-
-	fmt.Println("Input file path:", inputFilePath)
-	fmt.Println("Output file path:", outputFilePath)
-
-	return nil
-}
-
 const (
 	conventionsVersion = "1.10.0"
 	ruleWeight         = "10.0"
@@ -108,20 +79,35 @@ var (
 	sourcePattern        = regexp.MustCompile(`^SRG-[A-Z0-9]+-[0-9]{6}$`)
 )
 
-func main() {
-	if len(os.Args) != 3 {
-		fmt.Fprintf(
-			os.Stderr,
-			"usage: %s <input.yaml> <output.xml>\n",
-			filepath.Base(os.Args[0]),
-		)
-		os.Exit(2)
+func convert(cmd *cobra.Command, args []string) error {
+	var (
+		inputFilePath  string
+		err            error
+		flags          *pflag.FlagSet
+		outputFilePath string
+	)
+
+	// Read the flags previously given to the provided the command.
+	flags = cmd.Flags()
+
+	// Get the input file path from the flag set.
+	inputFilePath, err = flags.GetString("input-file")
+	if err != nil {
+		return err
 	}
 
-	inputPath := os.Args[1]
-	outputPath := os.Args[2]
+	// Get the output file path from the flag set.
+	outputFilePath, err = flags.GetString("output-file")
+	if err != nil {
+		return err
+	}
 
-	config, err := loadConfig(inputPath)
+	// If no output file path is specified, generate one based on the input file.
+	if outputFilePath == "" && inputFilePath != "" {
+		outputFilePath = inputFilePath + ".xccdf"
+	}
+
+	config, err := loadConfig(inputFilePath)
 	if err != nil {
 		fatal(err)
 	}
@@ -130,20 +116,16 @@ func main() {
 		fatal(err)
 	}
 
-	xccdf, err := buildXCCDF(config, filepath.Base(outputPath))
+	xccdf, err := buildXCCDF(config, filepath.Base(outputFilePath))
 	if err != nil {
 		fatal(err)
 	}
 
-	if err := os.WriteFile(outputPath, xccdf, 0644); err != nil {
-		fatal(fmt.Errorf("write %s: %w", outputPath, err))
+	if err := os.WriteFile(outputFilePath, xccdf, 0644); err != nil {
+		fatal(fmt.Errorf("write %s: %w", outputFilePath, err))
 	}
 
-	fmt.Printf(
-		"Generated %s with %d requirements\n",
-		outputPath,
-		len(config.Requirements),
-	)
+	return nil
 }
 
 func loadConfig(path string) (*models.Config, error) {
