@@ -3,762 +3,537 @@ package convert
 import (
 	"bytes"
 	"encoding/xml"
-	"errors"
-	"fmt"
 	"os"
 	"path/filepath"
-	"regexp"
+	"strconv"
 	"strings"
-	"time"
 
-	"github.com/deathlabs/pixie/models"
+	"github.com/deathlabs/pixie/models/xccdf/cdf"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"gopkg.in/yaml.v3"
 )
 
-var (
-	convertCmd = &cobra.Command{
-		Use:   "yaml",
-		Short: "Convert SRGs and STIGs to YAML or XCCDF.",
-		RunE:  convert,
-	}
-)
-
-const (
-	conventionsVersion = "1.10.0"
-	ruleWeight         = "10.0"
-)
-
-var profiles = []models.Profile{
-	{
-		ID:    "MAC-1_Classified",
-		Title: "I - Mission Critical Classified",
-	},
-	{
-		ID:    "MAC-1_Public",
-		Title: "I - Mission Critical Public",
-	},
-	{
-		ID:    "MAC-1_Sensitive",
-		Title: "I - Mission Critical Sensitive",
-	},
-	{
-		ID:    "MAC-2_Classified",
-		Title: "II - Mission Support Classified",
-	},
-	{
-		ID:    "MAC-2_Public",
-		Title: "II - Mission Support Public",
-	},
-	{
-		ID:    "MAC-2_Sensitive",
-		Title: "II - Mission Support Sensitive",
-	},
-	{
-		ID:    "MAC-3_Classified",
-		Title: "III - Administrative Classified",
-	},
-	{
-		ID:    "MAC-3_Public",
-		Title: "III - Administrative Public",
-	},
-	{
-		ID:    "MAC-3_Sensitive",
-		Title: "III - Administrative Sensitive",
-	},
+type config struct {
+	Benchmark    benchmark     `yaml:"benchmark"`
+	Requirements []requirement `yaml:"requirements"`
 }
 
-var (
-	vulnerabilityPattern = regexp.MustCompile(`^V-[0-9]+$`)
-	rulePattern          = regexp.MustCompile(`^SV-[A-Za-z0-9._-]+_rule$`)
-	fixPattern           = regexp.MustCompile(`^F-[A-Za-z0-9._-]+_fix$`)
-	checkPattern         = regexp.MustCompile(`^C-[A-Za-z0-9._-]+_chk$`)
-	cciPattern           = regexp.MustCompile(`^CCI-[0-9]{6}$`)
-	requirementPattern   = regexp.MustCompile(`^[A-Z0-9]+-[0-9]{6}$`)
-	sourcePattern        = regexp.MustCompile(`^SRG-[A-Z0-9]+-[0-9]{6}$`)
+type benchmark struct {
+	ID            string    `yaml:"id"`
+	Title         string    `yaml:"title"`
+	Description   string    `yaml:"description"`
+	Status        string    `yaml:"status"`
+	StatusDate    string    `yaml:"status_date"`
+	Version       int       `yaml:"version"`
+	Release       int       `yaml:"release"`
+	BenchmarkDate string    `yaml:"benchmark_date"`
+	Reference     reference `yaml:"reference"`
+}
+
+type reference struct {
+	Publisher string `yaml:"publisher"`
+	Source    string `yaml:"source"`
+	Href      string `yaml:"href"`
+}
+
+type requirement struct {
+	VulnerabilityID   string   `yaml:"vulnerability_id"`
+	SourceRequirement string   `yaml:"source_requirement"`
+	RequirementID     string   `yaml:"requirement_id"`
+	RuleID            string   `yaml:"rule_id"`
+	Severity          string   `yaml:"severity"`
+	Title             string   `yaml:"title"`
+	Discussion        string   `yaml:"discussion"`
+	FalsePositives    string   `yaml:"false_positives"`
+	FalseNegatives    string   `yaml:"false_negatives"`
+	Documentable      bool     `yaml:"documentable"`
+	Mitigations       string   `yaml:"mitigations"`
+	SeverityOverride  string   `yaml:"severity_override_guidance"`
+	PotentialImpacts  string   `yaml:"potential_impacts"`
+	ThirdPartyTools   string   `yaml:"third_party_tools"`
+	MitigationControl string   `yaml:"mitigation_control"`
+	Responsibility    string   `yaml:"responsibility"`
+	IAControls        string   `yaml:"ia_controls"`
+	CCIs              []string `yaml:"ccis"`
+	FixID             string   `yaml:"fix_id"`
+	Fix               string   `yaml:"fix"`
+	CheckID           string   `yaml:"check_id"`
+	Check             string   `yaml:"check"`
+}
+
+type benchmarkXML struct {
+	XMLName     xml.Name       `xml:"Benchmark"`
+	XMLNS       string         `xml:"xmlns,attr"`
+	ID          string         `xml:"id,attr"`
+	Lang        string         `xml:"http://www.w3.org/XML/1998/namespace lang,attr,omitempty"`
+	Status      []statusXML    `xml:"status"`
+	Title       []plainTextXML `xml:"title,omitempty"`
+	Description []innerTextXML `xml:"description,omitempty"`
+	Reference   []referenceXML `xml:"reference,omitempty"`
+	Version     versionXML     `xml:"version"`
+	Group       []groupXML     `xml:"Group,omitempty"`
+}
+
+type statusXML struct {
+	Date string `xml:"date,attr,omitempty"`
+	Text string `xml:",chardata"`
+}
+
+type plainTextXML struct {
+	Text string `xml:",chardata"`
+}
+
+type innerTextXML struct {
+	InnerXML string `xml:",innerxml"`
+}
+
+type referenceXML struct {
+	Href     string `xml:"href,attr,omitempty"`
+	InnerXML string `xml:",innerxml"`
+}
+
+type versionXML struct {
+	Text string `xml:",chardata"`
+}
+
+type groupXML struct {
+	ID    string         `xml:"id,attr"`
+	Title []innerTextXML `xml:"title,omitempty"`
+	Rule  []ruleXML      `xml:"Rule,omitempty"`
+}
+
+type ruleXML struct {
+	ID        string         `xml:"id,attr"`
+	Severity  string         `xml:"severity,attr,omitempty"`
+	Weight    string         `xml:"weight,attr,omitempty"`
+	Version   *versionXML    `xml:"version,omitempty"`
+	Title     []innerTextXML `xml:"title,omitempty"`
+	Rationale []innerTextXML `xml:"rationale,omitempty"`
+	Ident     []identXML     `xml:"ident,omitempty"`
+	FixText   []fixTextXML   `xml:"fixtext,omitempty"`
+	Check     []checkXML     `xml:"check,omitempty"`
+}
+
+type identXML struct {
+	System string `xml:"system,attr"`
+	Text   string `xml:",chardata"`
+}
+
+type fixTextXML struct {
+	FixRef   string `xml:"fixref,attr,omitempty"`
+	InnerXML string `xml:",innerxml"`
+}
+
+type checkXML struct {
+	System       string        `xml:"system,attr"`
+	ID           string        `xml:"id,attr,omitempty"`
+	CheckContent *innerTextXML `xml:"check-content,omitempty"`
+}
+
+const (
+	xccdfIDNamespace  = "com.github.deathlabs.pixie"
+	xccdfNamespace    = "http://checklists.nist.gov/xccdf/1.2"
+	cciSystem         = "http://cyber.mil/cci"
+	manualCheckSystem = "https://github.com/deathlabs/pixie/check/manual"
+	ruleWeight        = "10.0"
 )
+
+var convertCmd = &cobra.Command{
+	Use:   "yaml",
+	Short: "Convert SRGs and STIGs to XCCDF.",
+	RunE:  convert,
+}
 
 func convert(cmd *cobra.Command, args []string) error {
 	var (
-		inputFilePath  string
-		err            error
-		flags          *pflag.FlagSet
-		outputFilePath string
+		benchmark                  *cdf.Benchmark
+		config                     *config
+		data                       []byte
+		err                        error
+		flags                      *pflag.FlagSet
+		inputFilePath              string
+		inputFilePathWithoutSuffix string
+		outputFilePath             string
 	)
 
-	// Read the flags previously given to the provided the command.
 	flags = cmd.Flags()
 
-	// Get the input file path from the flag set.
 	inputFilePath, err = flags.GetString("input-file")
 	if err != nil {
 		return err
 	}
 
-	// Get the output file path from the flag set.
 	outputFilePath, err = flags.GetString("output-file")
 	if err != nil {
 		return err
 	}
 
-	// If no output file path is specified, generate one based on the input file.
-	if outputFilePath == "" && inputFilePath != "" {
-		outputFilePath = inputFilePath + ".xccdf"
+	if outputFilePath == "" {
+		inputFilePathWithoutSuffix = strings.TrimSuffix(inputFilePath, filepath.Ext(inputFilePath))
+		outputFilePath = inputFilePathWithoutSuffix + "-xccdf.xml"
 	}
 
-	config, err := loadConfig(inputFilePath)
+	config, err = loadConfig(inputFilePath)
 	if err != nil {
-		fatal(err)
+		return err
 	}
 
-	if err := validateConfig(config); err != nil {
-		fatal(err)
-	}
+	benchmark = buildBenchmark(config)
 
-	xccdf, err := buildXCCDF(config, filepath.Base(outputFilePath))
+	data, err = marshalXCCDF(benchmark)
 	if err != nil {
-		fatal(err)
+		return err
 	}
 
-	if err := os.WriteFile(outputFilePath, xccdf, 0644); err != nil {
-		fatal(fmt.Errorf("write %s: %w", outputFilePath, err))
-	}
-
-	return nil
+	return os.WriteFile(outputFilePath, data, 0644)
 }
 
-func loadConfig(path string) (*models.Config, error) {
-	file, err := os.Open(path)
+func marshalXCCDF(benchmark *cdf.Benchmark) ([]byte, error) {
+	document := benchmarkXML{
+		XMLNS: xccdfNamespace,
+		ID:    string(benchmark.Id),
+		Lang:  benchmark.XmlLang,
+		Version: versionXML{
+			Text: benchmark.Version.Text,
+		},
+	}
+
+	for _, status := range benchmark.Status {
+		document.Status = append(
+			document.Status,
+			statusXML{
+				Date: status.Date,
+				Text: status.Text,
+			},
+		)
+	}
+
+	for _, title := range benchmark.Title {
+		document.Title = append(
+			document.Title,
+			plainTextXML{
+				Text: title.Text,
+			},
+		)
+	}
+
+	for _, description := range benchmark.Description {
+		document.Description = append(
+			document.Description,
+			innerTextXML{
+				InnerXML: description.InnerXml,
+			},
+		)
+	}
+
+	for _, reference := range benchmark.Reference {
+		document.Reference = append(
+			document.Reference,
+			referenceXML{
+				Href:     reference.Href,
+				InnerXML: reference.InnerXml,
+			},
+		)
+	}
+
+	for _, group := range benchmark.Group {
+		document.Group = append(
+			document.Group,
+			marshalGroup(group),
+		)
+	}
+
+	data, err := xml.MarshalIndent(document, "", "  ")
 	if err != nil {
-		return nil, fmt.Errorf("open %s: %w", path, err)
+		return nil, err
+	}
+
+	data = append([]byte(xml.Header), data...)
+	data = append(data, '\n')
+	return data, nil
+}
+
+func marshalGroup(group cdf.GroupType) groupXML {
+	result := groupXML{
+		ID: group.Id,
+	}
+
+	for _, title := range group.Title {
+		result.Title = append(
+			result.Title,
+			innerTextXML{
+				InnerXML: title.InnerXml,
+			},
+		)
+	}
+
+	for _, rule := range group.Rule {
+		result.Rule = append(
+			result.Rule,
+			marshalRule(rule),
+		)
+	}
+
+	return result
+}
+
+func marshalRule(rule cdf.RuleType) ruleXML {
+	result := ruleXML{
+		ID:       rule.Id,
+		Severity: rule.Severity,
+		Weight:   rule.Weight,
+	}
+
+	if rule.Version != nil {
+		result.Version = &versionXML{
+			Text: rule.Version.Text,
+		}
+	}
+
+	for _, title := range rule.Title {
+		result.Title = append(
+			result.Title,
+			innerTextXML{
+				InnerXML: title.InnerXml,
+			},
+		)
+	}
+
+	for _, rationale := range rule.Rationale {
+		result.Rationale = append(
+			result.Rationale,
+			innerTextXML{
+				InnerXML: rationale.InnerXml,
+			},
+		)
+	}
+
+	for _, ident := range rule.Ident {
+		result.Ident = append(
+			result.Ident,
+			identXML{
+				System: ident.System,
+				Text:   ident.Text,
+			},
+		)
+	}
+
+	for _, fixText := range rule.Fixtext {
+		result.FixText = append(
+			result.FixText,
+			fixTextXML{
+				FixRef:   fixText.Fixref,
+				InnerXML: fixText.InnerXml,
+			},
+		)
+	}
+
+	for _, check := range rule.Check {
+		result.Check = append(
+			result.Check,
+			marshalCheck(check),
+		)
+	}
+
+	return result
+}
+
+func marshalCheck(check cdf.CheckType) checkXML {
+	result := checkXML{
+		ID:     check.Id,
+		System: check.System,
+	}
+
+	if check.CheckContent != nil {
+		result.CheckContent = &innerTextXML{
+			InnerXML: check.CheckContent.InnerXml,
+		}
+	}
+
+	return result
+}
+
+func loadConfig(path string) (*config, error) {
+	var (
+		config  config
+		decoder *yaml.Decoder
+		err     error
+		file    *os.File
+	)
+
+	file, err = os.Open(path)
+	if err != nil {
+		return nil, err
 	}
 	defer file.Close()
 
-	var config models.Config
-
-	decoder := yaml.NewDecoder(file)
-
-	// Fail if the YAML contains fields that do not exist
-	// in the Go schema. This catches authoring typos.
+	decoder = yaml.NewDecoder(file)
 	decoder.KnownFields(true)
 
-	if err := decoder.Decode(&config); err != nil {
-		return nil, fmt.Errorf("parse YAML: %w", err)
+	err = decoder.Decode(&config)
+	if err != nil {
+		return nil, err
 	}
 
 	return &config, nil
 }
 
-func validateConfig(config *models.Config) error {
-	if config == nil {
-		return errors.New("configuration is nil")
-	}
-
+func buildBenchmark(config *config) *cdf.Benchmark {
 	b := config.Benchmark
 
-	if strings.TrimSpace(b.ID) == "" {
-		return errors.New("benchmark.id is required")
-	}
-
-	if strings.TrimSpace(b.Title) == "" {
-		return errors.New("benchmark.title is required")
-	}
-
-	if strings.TrimSpace(b.Description) == "" {
-		return errors.New("benchmark.description is required")
-	}
-
-	switch b.Status {
-	case "accepted", "deprecated", "draft", "incomplete", "interim":
-	default:
-		return fmt.Errorf(
-			"benchmark.status %q is invalid",
-			b.Status,
-		)
-	}
-
-	if _, err := time.Parse("2006-01-02", b.StatusDate); err != nil {
-		return fmt.Errorf(
-			"benchmark.status_date must use YYYY-MM-DD: %w",
-			err,
-		)
-	}
-
-	if _, err := time.Parse("2006-01-02", b.BenchmarkDate); err != nil {
-		return fmt.Errorf(
-			"benchmark.benchmark_date must use YYYY-MM-DD: %w",
-			err,
-		)
-	}
-
-	if b.Version < 1 {
-		return errors.New("benchmark.version must be at least 1")
-	}
-
-	if b.Release < 1 {
-		return errors.New("benchmark.release must be at least 1")
-	}
-
-	if strings.TrimSpace(b.Reference.Publisher) == "" {
-		return errors.New("benchmark.reference.publisher is required")
-	}
-
-	if strings.TrimSpace(b.Reference.Source) == "" {
-		return errors.New("benchmark.reference.source is required")
-	}
-
-	if strings.TrimSpace(b.Reference.Href) == "" {
-		return errors.New("benchmark.reference.href is required")
-	}
-
-	if len(config.Requirements) == 0 {
-		return errors.New("at least one requirement is required")
-	}
-
-	vulnerabilityIDs := map[string]struct{}{}
-	ruleIDs := map[string]struct{}{}
-	fixIDs := map[string]struct{}{}
-	checkIDs := map[string]struct{}{}
-	versions := map[string]struct{}{}
-
-	for i, requirement := range config.Requirements {
-		n := i + 1
-
-		if !vulnerabilityPattern.MatchString(requirement.VulnerabilityID) {
-			return fmt.Errorf(
-				"requirement %d: invalid vulnerability_id %q",
-				n,
-				requirement.VulnerabilityID,
-			)
-		}
-
-		if _, exists := vulnerabilityIDs[requirement.VulnerabilityID]; exists {
-			return fmt.Errorf(
-				"requirement %d: duplicate vulnerability_id %q",
-				n,
-				requirement.VulnerabilityID,
-			)
-		}
-		vulnerabilityIDs[requirement.VulnerabilityID] = struct{}{}
-
-		if requirement.SourceRequirement != "" &&
-			!sourcePattern.MatchString(requirement.SourceRequirement) {
-			return fmt.Errorf(
-				"requirement %d: invalid source_requirement %q",
-				n,
-				requirement.SourceRequirement,
-			)
-		}
-
-		if !requirementPattern.MatchString(requirement.RequirementID) {
-			return fmt.Errorf(
-				"requirement %d: invalid requirement_id %q",
-				n,
-				requirement.RequirementID,
-			)
-		}
-
-		if !rulePattern.MatchString(requirement.RuleID) {
-			return fmt.Errorf(
-				"requirement %d: invalid rule_id %q",
-				n,
-				requirement.RuleID,
-			)
-		}
-
-		if _, exists := ruleIDs[requirement.RuleID]; exists {
-			return fmt.Errorf(
-				"requirement %d: duplicate rule_id %q",
-				n,
-				requirement.RuleID,
-			)
-		}
-		ruleIDs[requirement.RuleID] = struct{}{}
-
-		if !fixPattern.MatchString(requirement.FixID) {
-			return fmt.Errorf(
-				"requirement %d: invalid fix_id %q",
-				n,
-				requirement.FixID,
-			)
-		}
-
-		if _, exists := fixIDs[requirement.FixID]; exists {
-			return fmt.Errorf(
-				"requirement %d: duplicate fix_id %q",
-				n,
-				requirement.FixID,
-			)
-		}
-		fixIDs[requirement.FixID] = struct{}{}
-
-		if !checkPattern.MatchString(requirement.CheckID) {
-			return fmt.Errorf(
-				"requirement %d: invalid check_id %q",
-				n,
-				requirement.CheckID,
-			)
-		}
-
-		if _, exists := checkIDs[requirement.CheckID]; exists {
-			return fmt.Errorf(
-				"requirement %d: duplicate check_id %q",
-				n,
-				requirement.CheckID,
-			)
-		}
-		checkIDs[requirement.CheckID] = struct{}{}
-
-		switch requirement.Severity {
-		case "low", "medium", "high":
-		default:
-			return fmt.Errorf(
-				"requirement %d: invalid severity %q",
-				n,
-				requirement.Severity,
-			)
-		}
-
-		if strings.TrimSpace(requirement.Title) == "" {
-			return fmt.Errorf(
-				"requirement %d: title is required",
-				n,
-			)
-		}
-
-		if strings.TrimSpace(requirement.Discussion) == "" {
-			return fmt.Errorf(
-				"requirement %d: discussion is required",
-				n,
-			)
-		}
-
-		if strings.TrimSpace(requirement.Fix) == "" {
-			return fmt.Errorf(
-				"requirement %d: fix is required",
-				n,
-			)
-		}
-
-		if strings.TrimSpace(requirement.Check) == "" {
-			return fmt.Errorf(
-				"requirement %d: check is required",
-				n,
-			)
-		}
-
-		if len(requirement.CCIs) == 0 {
-			return fmt.Errorf(
-				"requirement %d: at least one CCI is required",
-				n,
-			)
-		}
-
-		for _, cci := range requirement.CCIs {
-			if !cciPattern.MatchString(cci) {
-				return fmt.Errorf(
-					"requirement %d: invalid CCI %q",
-					n,
-					cci,
-				)
-			}
-		}
-
-		version := ruleVersion(requirement)
-
-		if _, exists := versions[version]; exists {
-			return fmt.Errorf(
-				"requirement %d: duplicate generated version %q",
-				n,
-				version,
-			)
-		}
-		versions[version] = struct{}{}
-	}
-
-	return nil
-}
-
-func buildXCCDF(config *models.Config, outputFilename string) ([]byte, error) {
-	var out bytes.Buffer
-
-	b := config.Benchmark
-
-	benchmarkDate, err := formatDISADate(b.BenchmarkDate)
-	if err != nil {
-		return nil, err
-	}
-
-	out.WriteString(`<?xml version="1.0" encoding="utf-8"?>`)
-	out.WriteByte('\n')
-
-	out.WriteString(
-		`<?xml-stylesheet type='text/xsl' href='STIG_unclass.xsl'?>`,
-	)
-	out.WriteByte('\n')
-
-	fmt.Fprintf(
-		&out,
-		`<Benchmark xmlns:dc="http://purl.org/dc/elements/1.1/" `+
-			`xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" `+
-			`xmlns:cpe="http://cpe.mitre.org/language/2.0" `+
-			`xmlns:xhtml="http://www.w3.org/1999/xhtml" `+
-			`xmlns:dsig="http://www.w3.org/2000/09/xmldsig#" `+
-			`xsi:schemaLocation="http://checklists.nist.gov/xccdf/1.1 `+
-			`http://nvd.nist.gov/schema/xccdf-1.1.4.xsd `+
-			`http://cpe.mitre.org/dictionary/2.0 `+
-			`http://cpe.mitre.org/files/cpe-dictionary_2.1.xsd" `+
-			`id="%s" xml:lang="en" `+
-			`xmlns="http://checklists.nist.gov/xccdf/1.1">`,
-		escape(b.ID),
-	)
-	out.WriteByte('\n')
-
-	fmt.Fprintf(
-		&out,
-		`  <status date="%s">%s</status>`+"\n",
-		escape(b.StatusDate),
-		escape(b.Status),
-	)
-
-	fmt.Fprintf(
-		&out,
-		"  <title>%s</title>\n",
-		escape(b.Title),
-	)
-
-	fmt.Fprintf(
-		&out,
-		"  <description>%s</description>\n",
-		escape(strings.TrimSpace(b.Description)),
-	)
-
-	out.WriteString(
-		`  <notice id="terms-of-use" xml:lang="en"></notice>` + "\n",
-	)
-	out.WriteString(
-		`  <front-matter xml:lang="en"></front-matter>` + "\n",
-	)
-	out.WriteString(
-		`  <rear-matter xml:lang="en"></rear-matter>` + "\n",
-	)
-
-	fmt.Fprintf(
-		&out,
-		`  <reference href="%s">`+"\n",
-		escape(b.Reference.Href),
-	)
-
-	fmt.Fprintf(
-		&out,
-		"    <dc:publisher>%s</dc:publisher>\n",
-		escape(b.Reference.Publisher),
-	)
-
-	fmt.Fprintf(
-		&out,
-		"    <dc:source>%s</dc:source>\n",
-		escape(b.Reference.Source),
-	)
-
-	out.WriteString("  </reference>\n")
-
-	fmt.Fprintf(
-		&out,
-		`  <plain-text id="release-info">Release: %d Benchmark Date: %s</plain-text>`+"\n",
-		b.Release,
-		escape(benchmarkDate),
-	)
-
-	fmt.Fprintf(
-		&out,
-		`  <plain-text id="generator">%s</plain-text>`+"\n",
-		escape("pixie"),
-	)
-
-	fmt.Fprintf(
-		&out,
-		`  <plain-text id="conventionsVersion">%s</plain-text>`+"\n",
-		escape(conventionsVersion),
-	)
-
-	fmt.Fprintf(
-		&out,
-		"  <version>%d</version>\n",
-		b.Version,
-	)
-
-	writeProfiles(&out, config.Requirements)
-
+	groups := make([]cdf.GroupType, 0, len(config.Requirements))
 	for _, requirement := range config.Requirements {
-		writeRequirement(
-			&out,
-			requirement,
-			outputFilename,
-		)
+		groups = append(groups, buildGroup(requirement))
 	}
 
-	out.WriteString("</Benchmark>\n")
+	benchmark := &cdf.Benchmark{
+		Id:      cdf.BenchmarkIdType(b.ID),
+		XmlLang: "en",
 
-	return out.Bytes(), nil
-}
+		Status: []cdf.Status{
+			{
+				Date: b.StatusDate,
+				Text: b.Status,
+			},
+		},
 
-func writeProfiles(out *bytes.Buffer, requirements []models.Requirement) {
-	for _, profile := range profiles {
-		fmt.Fprintf(
-			out,
-			`  <Profile id="%s">`+"\n",
-			escape(profile.ID),
+		Title: []cdf.TextType{
+			{
+				XmlLang: "en",
+				Text:    strings.TrimSpace(b.Title),
+			},
+		},
+
+		Description: []cdf.HtmlTextWithSubType{
+			{
+				XmlLang:  "en",
+				InnerXml: xmlText(b.Description),
+			},
+		},
+
+		Version: cdf.VersionType{
+			Text: strconv.Itoa(b.Version),
+		},
+
+		Group: groups,
+	}
+
+	if b.Reference.Href != "" {
+		referenceText := strings.TrimSpace(
+			b.Reference.Publisher + " " + b.Reference.Source,
 		)
 
-		fmt.Fprintf(
-			out,
-			"    <title>%s</title>\n",
-			escape(profile.Title),
-		)
-
-		out.WriteString(
-			"    <description>" +
-				escape("<ProfileDescription></ProfileDescription>") +
-				"</description>\n",
-		)
-
-		for _, requirement := range requirements {
-			fmt.Fprintf(
-				out,
-				`    <select idref="%s" selected="true"/>`+"\n",
-				escape(requirement.VulnerabilityID),
-			)
+		benchmark.Reference = []cdf.ReferenceType{
+			{
+				Href:     b.Reference.Href,
+				InnerXml: xmlText(referenceText),
+			},
 		}
+	}
 
-		out.WriteString("  </Profile>\n")
+	return benchmark
+}
+
+func buildGroup(requirement requirement) cdf.GroupType {
+	title := requirement.SourceRequirement
+	if title == "" {
+		title = requirement.RequirementID
+	}
+
+	return cdf.GroupType{
+		Id: requirement.VulnerabilityID,
+
+		Title: []cdf.TextWithSubType{
+			{
+				InnerXml: xmlText(title),
+			},
+		},
+
+		Rule: []cdf.RuleType{
+			buildRule(requirement),
+		},
 	}
 }
 
-func writeRequirement(
-	out *bytes.Buffer,
-	requirement models.Requirement,
-	outputFilename string,
-) {
-	fmt.Fprintf(
-		out,
-		`  <Group id="%s">`+"\n",
-		escape(requirement.VulnerabilityID),
-	)
-
-	groupTitle := requirement.SourceRequirement
-	if groupTitle == "" {
-		groupTitle = requirement.RequirementID
+func buildRule(requirement requirement) cdf.RuleType {
+	return cdf.RuleType{
+		Id:       requirement.RuleID,
+		Severity: requirement.Severity,
+		Weight:   ruleWeight,
+		Version: &cdf.VersionType{
+			Text: ruleVersion(requirement),
+		},
+		Title: []cdf.TextWithSubType{
+			{
+				InnerXml: xmlText(requirement.Title),
+			},
+		},
+		Rationale: []cdf.HtmlTextWithSubType{
+			{
+				InnerXml: xmlText(requirement.Discussion),
+			},
+		},
+		Ident: buildIdents(requirement),
+		Fixtext: []cdf.FixTextType{
+			buildFixText(requirement),
+		},
+		Check: []cdf.CheckType{
+			buildCheck(requirement),
+		},
 	}
+}
 
-	fmt.Fprintf(
-		out,
-		"    <title>%s</title>\n",
-		escape(groupTitle),
-	)
+func buildCheck(requirement requirement) cdf.CheckType {
+	return cdf.CheckType{
+		Id:     requirement.CheckID,
+		System: manualCheckSystem,
+		CheckContent: &cdf.CheckContentType{
+			InnerXml: xmlText(requirement.Check),
+		},
+	}
+}
 
-	out.WriteString(
-		"    <description>" +
-			escape("<GroupDescription></GroupDescription>") +
-			"</description>\n",
-	)
+func buildFixText(requirement requirement) cdf.FixTextType {
+	return cdf.FixTextType{
+		Fixref:   requirement.FixID,
+		InnerXml: xmlText(requirement.Fix),
+	}
+}
 
-	fmt.Fprintf(
-		out,
-		`    <Rule id="%s" weight="%s" severity="%s">`+"\n",
-		escape(requirement.RuleID),
-		ruleWeight,
-		escape(requirement.Severity),
-	)
-
-	fmt.Fprintf(
-		out,
-		"      <version>%s</version>\n",
-		escape(ruleVersion(requirement)),
-	)
-
-	fmt.Fprintf(
-		out,
-		"      <title>%s</title>\n",
-		escape(strings.TrimSpace(requirement.Title)),
-	)
-
-	description := buildRuleDescription(requirement)
-
-	fmt.Fprintf(
-		out,
-		"      <description>%s</description>\n",
-		escape(description),
-	)
+func buildIdents(requirement requirement) []cdf.IdentType {
+	idents := make([]cdf.IdentType, 0, len(requirement.CCIs))
 
 	for _, cci := range requirement.CCIs {
-		fmt.Fprintf(
-			out,
-			`      <ident system="http://cyber.mil/cci">%s</ident>`+"\n",
-			escape(cci),
+		idents = append(
+			idents,
+			cdf.IdentType{
+				System: cciSystem,
+				Text:   cci,
+			},
 		)
 	}
 
-	fmt.Fprintf(
-		out,
-		`      <fixtext fixref="%s">%s</fixtext>`+"\n",
-		escape(requirement.FixID),
-		escape(strings.TrimSpace(requirement.Fix)),
-	)
-
-	fmt.Fprintf(
-		out,
-		`      <fix id="%s"/>`+"\n",
-		escape(requirement.FixID),
-	)
-
-	fmt.Fprintf(
-		out,
-		`      <check system="%s">`+"\n",
-		escape(requirement.CheckID),
-	)
-
-	fmt.Fprintf(
-		out,
-		`        <check-content-ref href="%s" name="M"/>`+"\n",
-		escape(outputFilename),
-	)
-
-	fmt.Fprintf(
-		out,
-		"        <check-content>%s</check-content>\n",
-		escape(strings.TrimSpace(requirement.Check)),
-	)
-
-	out.WriteString("      </check>\n")
-	out.WriteString("    </Rule>\n")
-	out.WriteString("  </Group>\n")
+	return idents
 }
 
-func buildRuleDescription(requirement models.Requirement) string {
-	var description strings.Builder
-
-	// These are XML elements stored as text inside the
-	// XCCDF <description> element, matching DISA's format.
-	writeEmbeddedField(
-		&description,
-		"VulnDiscussion",
-		requirement.Discussion,
-	)
-
-	writeEmbeddedField(
-		&description,
-		"FalsePositives",
-		requirement.FalsePositives,
-	)
-
-	writeEmbeddedField(
-		&description,
-		"FalseNegatives",
-		requirement.FalseNegatives,
-	)
-
-	fmt.Fprintf(
-		&description,
-		"<Documentable>%t</Documentable>",
-		requirement.Documentable,
-	)
-
-	writeEmbeddedField(
-		&description,
-		"Mitigations",
-		requirement.Mitigations,
-	)
-
-	writeEmbeddedField(
-		&description,
-		"SeverityOverrideGuidance",
-		requirement.SeverityOverride,
-	)
-
-	writeEmbeddedField(
-		&description,
-		"PotentialImpacts",
-		requirement.PotentialImpacts,
-	)
-
-	writeEmbeddedField(
-		&description,
-		"ThirdPartyTools",
-		requirement.ThirdPartyTools,
-	)
-
-	writeEmbeddedField(
-		&description,
-		"MitigationControl",
-		requirement.MitigationControl,
-	)
-
-	writeEmbeddedField(
-		&description,
-		"Responsibility",
-		requirement.Responsibility,
-	)
-
-	writeEmbeddedField(
-		&description,
-		"IAControls",
-		requirement.IAControls,
-	)
-
-	return description.String()
-}
-
-func writeEmbeddedField(
-	builder *strings.Builder,
-	name string,
-	value string,
-) {
-	fmt.Fprintf(
-		builder,
-		"<%s>%s</%s>",
-		name,
-		escape(strings.TrimSpace(value)),
-		name,
-	)
-}
-
-func ruleVersion(requirement models.Requirement) string {
+func ruleVersion(requirement requirement) string {
 	if requirement.SourceRequirement == "" {
 		return requirement.RequirementID
 	}
 
-	return requirement.SourceRequirement +
-		"-" +
-		requirement.RequirementID
+	return requirement.SourceRequirement + "-" + requirement.RequirementID
 }
 
-func formatDISADate(value string) (string, error) {
-	date, err := time.Parse("2006-01-02", value)
-	if err != nil {
-		return "", fmt.Errorf(
-			"parse benchmark date %q: %w",
-			value,
-			err,
-		)
-	}
-
-	return date.Format("02 Jan 2006"), nil
-}
-
-func escape(value string) string {
+func xmlText(value string) string {
 	var out bytes.Buffer
 
-	if err := xml.EscapeText(&out, []byte(value)); err != nil {
-		// bytes.Buffer never returns a write error.
+	if err := xml.EscapeText(
+		&out,
+		[]byte(strings.TrimSpace(value)),
+	); err != nil {
 		panic(err)
 	}
 
 	return out.String()
-}
-
-func fatal(err error) {
-	fmt.Fprintln(os.Stderr, "error:", err)
-	os.Exit(1)
 }

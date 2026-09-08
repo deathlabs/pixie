@@ -1,0 +1,139 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Benchmark xmlns="http://checklists.nist.gov/xccdf/1.2" id="Agentic_AI_Infrastructure_SRG" xml:lang="en">
+  <status date="2026-09-07">draft</status>
+  <title>Agentic AI Infrastructure Security Requirements Guide</title>
+  <description>This Security Requirements Guide establishes security requirements for agentic AI infrastructure.</description>
+  <reference href="https://cyber.mil">DoD CIO / DISA DoD AI Cybersecurity RMF Tailoring Guide Version 2 and DISA CCI List 2026-07-14</reference>
+  <version>1</version>
+  <Group id="V-900001">
+    <title>AC-2</title>
+    <Rule id="SV-900001r1_rule" severity="medium" weight="10.0">
+      <version>AC-2-AAI-000010</version>
+      <title>The AI system must define and restrict privileges for AI service, agent, and workload accounts.</title>
+      <rationale>Deployed AI systems commonly use non-human identities for model serving, orchestration, retrieval, tool access, data access, and communication with supporting services. If the privileges assigned to these identities are not explicitly defined, an AI component or compromised workload may gain access beyond what is required for its assigned function.</rationale>
+      <ident system="http://cyber.mil/cci">CCI-002118</ident>
+      <fixtext fixref="F-900001r1_fix">Identify each service, agent, and workload account used by the deployed AI system. Define the authorized privileges for each account and remove access that is not required for the account&#39;s assigned function. Use dedicated identities for distinct AI services or trust domains where practical.</fixtext>
+      <check system="https://github.com/deathlabs/pixie/check/manual" id="C-900001r1_chk">
+        <check-content>Review the identity provider, workload identity configuration, service&#xA;accounts, deployment manifests, and permission assignments used by the AI&#xA;system.&#xA;&#xA;Identify the non-human accounts used by model servers, agent runtimes,&#xA;retrieval services, tool connectors, and supporting AI services.&#xA;&#xA;Verify that authorized privileges are explicitly defined for each account.&#xA;&#xA;Verify that the assigned privileges do not exceed the privileges defined for&#xA;the account&#39;s assigned function.&#xA;&#xA;If an AI service, agent, or workload account does not have explicitly defined&#xA;privileges, or is assigned privileges beyond those defined for its function,&#xA;this is a finding.</check-content>
+      </check>
+    </Rule>
+  </Group>
+  <Group id="V-900002">
+    <title>AC-3</title>
+    <Rule id="SV-900002r1_rule" severity="high" weight="10.0">
+      <version>AC-3-AAI-000020</version>
+      <title>The AI system must enforce authorization before access to models, tools, data, and system resources.</title>
+      <rationale>AI systems expose model inference, data retrieval, administration, tool execution, and other capabilities to users and processes. Authentication alone does not establish that an identity is authorized to perform a requested action. Authorization must be enforced before access is granted to AI models, tools, data stores, administrative functions, or other system resources.</rationale>
+      <ident system="http://cyber.mil/cci">CCI-000213</ident>
+      <fixtext fixref="F-900002r1_fix">Configure the AI system to enforce approved access authorizations at the model gateway, application, orchestration, tool execution, data access, and administrative layers. Deny requests when the requesting user, process, or AI workload is not authorized for the requested resource or action.</fixtext>
+      <check system="https://github.com/deathlabs/pixie/check/manual" id="C-900002r1_chk">
+        <check-content>Review the authorization policies protecting the AI system&#39;s models, tools,&#xA;data stores, administrative interfaces, and other protected resources.&#xA;&#xA;Verify that authorization is evaluated before access to each protected&#xA;resource or action is granted.&#xA;&#xA;Using a test identity that is authenticated but not authorized for a&#xA;protected resource, attempt to access the resource or perform the protected&#xA;action.&#xA;&#xA;If the AI system grants access that is not supported by an approved&#xA;authorization, this is a finding.</check-content>
+      </check>
+    </Rule>
+  </Group>
+  <Group id="V-900003">
+    <title>AC-4</title>
+    <Rule id="SV-900003r1_rule" severity="high" weight="10.0">
+      <version>AC-4-AAI-000030</version>
+      <title>The AI system must enforce approved information flows between the AI system and connected systems.</title>
+      <rationale>Deployed AI systems may exchange prompts, retrieved context, model outputs, tool parameters, telemetry, and other information with model endpoints, vector stores, data services, external application programming interfaces, and other connected systems. Uncontrolled information flows can allow sensitive information to leave approved boundaries or permit untrusted information to reach AI components through unauthorized paths.</rationale>
+      <ident system="http://cyber.mil/cci">CCI-001414</ident>
+      <fixtext fixref="F-900003r1_fix">Define approved information flows for the deployed AI system and enforce them using application authorization, network policy, service-mesh policy, data handling controls, or equivalent mechanisms. Remove or block connections and data paths that are not explicitly approved.</fixtext>
+      <check system="https://github.com/deathlabs/pixie/check/manual" id="C-900003r1_chk">
+        <check-content>Review the AI system data-flow documentation, network configuration,&#xA;application authorization policy, service-mesh policy, and connector&#xA;configuration.&#xA;&#xA;Identify the systems with which the AI system exchanges information.&#xA;&#xA;Verify that each information flow is explicitly approved and enforced by a&#xA;technical control.&#xA;&#xA;Attempt to establish or use an unapproved information path from the AI&#xA;system to a connected system, or from a connected system to the AI system.&#xA;&#xA;If an unapproved information flow can occur, this is a finding.</check-content>
+      </check>
+    </Rule>
+  </Group>
+  <Group id="V-900004">
+    <title>AC-6</title>
+    <Rule id="SV-900004r1_rule" severity="high" weight="10.0">
+      <version>AC-6-AAI-000040</version>
+      <title>The AI system must operate AI workloads with only the privileges required for assigned functions.</title>
+      <rationale>AI workloads may act on behalf of users and may be capable of retrieving information, invoking tools, modifying resources, or communicating with other services. Excessive runtime privileges increase the impact of prompt injection, compromised dependencies, model misuse, or unintended agent behavior. AI workloads must be limited to the accesses necessary to perform assigned tasks.</rationale>
+      <ident system="http://cyber.mil/cci">CCI-000225</ident>
+      <fixtext fixref="F-900004r1_fix">Remove unnecessary permissions from AI workload identities, runtime processes, containers, tool integrations, and supporting services. Restrict access to only the models, tools, data, commands, namespaces, endpoints, and other resources required for assigned functions.</fixtext>
+      <check system="https://github.com/deathlabs/pixie/check/manual" id="C-900004r1_chk">
+        <check-content>Review the privileges assigned to AI runtime processes, workload identities,&#xA;service accounts, containers, orchestration components, and tool&#xA;integrations.&#xA;&#xA;Compare the assigned privileges with the documented functions of each AI&#xA;workload.&#xA;&#xA;Verify that the workload cannot access resources or perform operations that&#xA;are not required for its assigned function.&#xA;&#xA;If an AI workload has access or privileges that are not necessary for its&#xA;assigned function, this is a finding.</check-content>
+      </check>
+    </Rule>
+  </Group>
+  <Group id="V-900005">
+    <title>CA-7(4)</title>
+    <Rule id="SV-900005r1_rule" severity="medium" weight="10.0">
+      <version>CA-7(4)-AAI-000050</version>
+      <title>The AI system must monitor security-relevant changes to deployed AI models and configurations.</title>
+      <rationale>The cybersecurity risk of an operational AI system can change when models are replaced or retrained, model artifacts change, tools or connectors are added, serving parameters are modified, or security policies and deployment configurations are changed. Change monitoring allows the organization to identify changes that may alter the approved risk posture of the deployed AI system.</rationale>
+      <ident system="http://cyber.mil/cci">CCI-003883</ident>
+      <fixtext fixref="F-900005r1_fix">Include security-relevant AI system changes in the continuous monitoring strategy. Monitor changes to deployed model versions or digests, model serving configuration, tool and connector definitions, authorization policy, network policy, and other configuration elements that can alter the AI system&#39;s security posture.</fixtext>
+      <check system="https://github.com/deathlabs/pixie/check/manual" id="C-900005r1_chk">
+        <check-content>Review the continuous monitoring strategy and the mechanisms used to detect&#xA;changes to the deployed AI system.&#xA;&#xA;Verify that monitoring includes security-relevant changes to deployed model&#xA;artifacts and AI system configuration.&#xA;&#xA;Review change-monitoring records or alerts for a recent authorized change,&#xA;or perform an authorized test change in a test environment.&#xA;&#xA;Verify that the change is detected and recorded by the monitoring&#xA;mechanism.&#xA;&#xA;If security-relevant changes to deployed AI models or configurations are&#xA;outside the change-monitoring process, this is a finding.</check-content>
+      </check>
+    </Rule>
+  </Group>
+  <Group id="V-900006">
+    <title>CM-2</title>
+    <Rule id="SV-900006r1_rule" severity="medium" weight="10.0">
+      <version>CM-2-AAI-000060</version>
+      <title>The AI system must maintain a current baseline configuration for the deployed AI system.</title>
+      <rationale>A deployed AI system includes the model and the infrastructure and configuration that make the model operational. Without a current baseline, the organization cannot reliably determine whether deployed model artifacts, runtime components, tool integrations, security policies, or other configuration have drifted from an approved state.</rationale>
+      <ident system="http://cyber.mil/cci">CCI-000295</ident>
+      <fixtext fixref="F-900006r1_fix">Maintain the deployed AI system under configuration control using a current approved baseline. At a minimum, include the deployed model identifier, version or digest, runtime image versions or digests, deployment configuration, tool and connector definitions, authorization policy, network policy, and other security-relevant configuration.</fixtext>
+      <check system="https://github.com/deathlabs/pixie/check/manual" id="C-900006r1_chk">
+        <check-content>Review the approved baseline configuration for the deployed AI system.&#xA;&#xA;Verify that the baseline identifies the deployed model artifact and the&#xA;infrastructure and security-relevant configuration required to operate it.&#xA;&#xA;Compare the deployed AI system with the approved baseline.&#xA;&#xA;If a current approved baseline does not exist, or the deployed AI system&#xA;cannot be reconciled to the current baseline, this is a finding.</check-content>
+      </check>
+    </Rule>
+  </Group>
+  <Group id="V-900007">
+    <title>CM-5</title>
+    <Rule id="SV-900007r1_rule" severity="high" weight="10.0">
+      <version>CM-5-AAI-000070</version>
+      <title>The AI system must restrict logical access to changes affecting deployed AI models and configurations.</title>
+      <rationale>Unauthorized modification of a deployed model, tool definition, system prompt, retrieval configuration, policy, or deployment setting can alter system behavior and security controls without changing the surrounding application. Logical access to make these changes must be limited to explicitly authorized identities and change mechanisms.</rationale>
+      <ident system="http://cyber.mil/cci">CCI-000345</ident>
+      <fixtext fixref="F-900007r1_fix">Enforce logical access restrictions on repositories, registries, deployment systems, model-serving configuration, tool definitions, system prompts, retrieval configuration, and security policy used by the deployed AI system. Limit change privileges to authorized administrators, release processes, or workload identities.</fixtext>
+      <check system="https://github.com/deathlabs/pixie/check/manual" id="C-900007r1_chk">
+        <check-content>Review the logical access controls for systems that can modify the deployed&#xA;AI model or security-relevant AI configuration.&#xA;&#xA;Identify the identities and automated processes authorized to make changes.&#xA;&#xA;Verify that identities without change authorization cannot modify model&#xA;artifacts, deployment references, tool definitions, system prompts,&#xA;retrieval configuration, authorization policy, or other protected&#xA;configuration.&#xA;&#xA;If an unauthorized identity can make a protected change to the deployed AI&#xA;system, this is a finding.</check-content>
+      </check>
+    </Rule>
+  </Group>
+  <Group id="V-900008">
+    <title>IA-9</title>
+    <Rule id="SV-900008r1_rule" severity="high" weight="10.0">
+      <version>IA-9-AAI-000080</version>
+      <title>The AI system must authenticate connected services and applications before establishing communications.</title>
+      <rationale>Operational AI systems frequently depend on model gateways, retrieval services, vector databases, tool services, data sources, and other applications. If these services are not uniquely authenticated, an attacker may impersonate a trusted AI component or redirect AI communications to an unauthorized service.</rationale>
+      <ident system="http://cyber.mil/cci">CCI-002022</ident>
+      <fixtext fixref="F-900008r1_fix">Configure the AI system to uniquely authenticate model services, tool services, retrieval services, data services, and other applications before establishing communications. Use an organization-approved service authentication mechanism appropriate to the deployment architecture.</fixtext>
+      <check system="https://github.com/deathlabs/pixie/check/manual" id="C-900008r1_chk">
+        <check-content>Review the service-to-service communication paths used by the deployed AI&#xA;system.&#xA;&#xA;Verify that connected model, tool, retrieval, data, and supporting services&#xA;are uniquely authenticated before communications are established.&#xA;&#xA;Attempt to connect to a protected AI service without a valid service&#xA;identity, or using an untrusted service identity.&#xA;&#xA;If the AI system establishes trusted communications with a service or&#xA;application that has not been uniquely authenticated, this is a finding.</check-content>
+      </check>
+    </Rule>
+  </Group>
+  <Group id="V-900009">
+    <title>SC-7(5)</title>
+    <Rule id="SV-900009r1_rule" severity="high" weight="10.0">
+      <version>SC-7(5)-AAI-000090</version>
+      <title>The AI system must deny network communications by default and allow only explicitly authorized communications.</title>
+      <rationale>AI systems may communicate with model endpoints, tool services, data stores, telemetry services, and external application programming interfaces. Default-permit connectivity increases the attack surface and can allow unauthorized ingress, data exfiltration, or access to unapproved external services. Managed interfaces must use a deny-by-default, allow-by-exception posture.</rationale>
+      <ident system="http://cyber.mil/cci">CCI-001109</ident>
+      <fixtext fixref="F-900009r1_fix">Configure firewalls, security groups, network policies, service-mesh policies, egress controls, or equivalent managed interfaces to deny AI system network communications by default. Explicitly allow only the inbound and outbound communications required for authorized AI system functions.</fixtext>
+      <check system="https://github.com/deathlabs/pixie/check/manual" id="C-900009r1_chk">
+        <check-content>Review the managed network interfaces protecting the AI system, including&#xA;ingress and egress controls.&#xA;&#xA;Verify that the default network policy is deny and that required&#xA;communications are implemented as explicit exceptions.&#xA;&#xA;Attempt to establish an unapproved inbound or outbound network connection&#xA;to or from the AI system.&#xA;&#xA;If network communications are permitted by default, or an unapproved&#xA;connection is permitted, this is a finding.</check-content>
+      </check>
+    </Rule>
+  </Group>
+  <Group id="V-900010">
+    <title>SC-13 / SC-28</title>
+    <Rule id="SV-900010r1_rule" severity="high" weight="10.0">
+      <version>SC-13 / SC-28-AAI-000100</version>
+      <title>The AI system must protect AI information in transit with approved cryptography and protect required AI information at rest.</title>
+      <rationale>Deployed AI systems process and store model artifacts, prompts, retrieved context, tool inputs and outputs, telemetry, and other information that may require confidentiality or integrity protection. Unprotected communications may expose or permit modification of AI information in transit, while inadequate protection at rest may expose or permit modification of stored AI information and configuration.</rationale>
+      <ident system="http://cyber.mil/cci">CCI-002450</ident>
+      <ident system="http://cyber.mil/cci">CCI-001199</ident>
+      <fixtext fixref="F-900010r1_fix">Identify AI communications that require cryptographic protection and configure organization-approved cryptography for those uses. Identify AI information at rest that requires confidentiality or integrity protection and configure the storage mechanisms necessary to provide that protection. Apply these protections to model artifacts, AI configuration, prompts, retrieved context, outputs, and other AI information according to organizational requirements.</fixtext>
+      <check system="https://github.com/deathlabs/pixie/check/manual" id="C-900010r1_chk">
+        <check-content>Review the AI system&#39;s communications and storage configuration.&#xA;&#xA;Identify the AI communications for which cryptographic protection is&#xA;required and verify that the configured cryptography satisfies&#xA;organizational requirements.&#xA;&#xA;Identify AI information at rest that requires confidentiality or integrity&#xA;protection and verify that the required protections are implemented.&#xA;&#xA;If a communication requiring cryptographic protection does not use the&#xA;required cryptography, or information at rest requiring confidentiality or&#xA;integrity protection is not protected, this is a finding.</check-content>
+      </check>
+    </Rule>
+  </Group>
+</Benchmark>

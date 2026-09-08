@@ -1,0 +1,480 @@
+---
+benchmark:
+  version: 1
+  release: 1
+  id: Agentic_AI_Infrastructure_SRG
+  title: Agentic AI Infrastructure Security Requirements Guide
+  description: This Security Requirements Guide establishes security requirements for agentic AI infrastructure.
+  status: draft
+  status_date: "2026-09-07"
+  benchmark_date: "2026-09-07"
+  reference:
+    publisher: DoD CIO / DISA
+    source: DoD AI Cybersecurity RMF Tailoring Guide Version 2 and DISA CCI List 2026-07-14
+    href: https://cyber.mil
+
+requirements:
+  - vulnerability_id: V-900001
+    source_requirement: AC-2
+    requirement_id: AAI-000010
+    rule_id: SV-900001r1_rule
+    severity: medium
+    title: The AI system must define and restrict privileges for AI service, agent, and workload accounts.
+    discussion: >
+      Deployed AI systems commonly use non-human identities for model serving,
+      orchestration, retrieval, tool access, data access, and communication with
+      supporting services. If the privileges assigned to these identities are not
+      explicitly defined, an AI component or compromised workload may gain access
+      beyond what is required for its assigned function.
+    false_positives: ""
+    false_negatives: ""
+    documentable: false
+    mitigations: ""
+    severity_override_guidance: ""
+    potential_impacts: ""
+    third_party_tools: ""
+    mitigation_control: ""
+    responsibility: ""
+    ia_controls: ""
+    ccis:
+      - CCI-002118
+    fix_id: F-900001r1_fix
+    fix: >
+      Identify each service, agent, and workload account used by the deployed AI
+      system. Define the authorized privileges for each account and remove access
+      that is not required for the account's assigned function. Use dedicated
+      identities for distinct AI services or trust domains where practical.
+    check_id: C-900001r1_chk
+    check: |
+      Review the identity provider, workload identity configuration, service
+      accounts, deployment manifests, and permission assignments used by the AI
+      system.
+
+      Identify the non-human accounts used by model servers, agent runtimes,
+      retrieval services, tool connectors, and supporting AI services.
+
+      Verify that authorized privileges are explicitly defined for each account.
+
+      Verify that the assigned privileges do not exceed the privileges defined for
+      the account's assigned function.
+
+      If an AI service, agent, or workload account does not have explicitly defined
+      privileges, or is assigned privileges beyond those defined for its function,
+      this is a finding.
+
+  - vulnerability_id: V-900002
+    source_requirement: AC-3
+    requirement_id: AAI-000020
+    rule_id: SV-900002r1_rule
+    severity: high
+    title: The AI system must enforce authorization before access to models, tools, data, and system resources.
+    discussion: >
+      AI systems expose model inference, data retrieval, administration, tool
+      execution, and other capabilities to users and processes. Authentication
+      alone does not establish that an identity is authorized to perform a
+      requested action. Authorization must be enforced before access is granted
+      to AI models, tools, data stores, administrative functions, or other system
+      resources.
+    false_positives: ""
+    false_negatives: ""
+    documentable: false
+    mitigations: ""
+    severity_override_guidance: ""
+    potential_impacts: ""
+    third_party_tools: ""
+    mitigation_control: ""
+    responsibility: ""
+    ia_controls: ""
+    ccis:
+      - CCI-000213
+    fix_id: F-900002r1_fix
+    fix: >
+      Configure the AI system to enforce approved access authorizations at the
+      model gateway, application, orchestration, tool execution, data access, and
+      administrative layers. Deny requests when the requesting user, process, or
+      AI workload is not authorized for the requested resource or action.
+    check_id: C-900002r1_chk
+    check: |
+      Review the authorization policies protecting the AI system's models, tools,
+      data stores, administrative interfaces, and other protected resources.
+
+      Verify that authorization is evaluated before access to each protected
+      resource or action is granted.
+
+      Using a test identity that is authenticated but not authorized for a
+      protected resource, attempt to access the resource or perform the protected
+      action.
+
+      If the AI system grants access that is not supported by an approved
+      authorization, this is a finding.
+
+  - vulnerability_id: V-900003
+    source_requirement: AC-4
+    requirement_id: AAI-000030
+    rule_id: SV-900003r1_rule
+    severity: high
+    title: The AI system must enforce approved information flows between the AI system and connected systems.
+    discussion: >
+      Deployed AI systems may exchange prompts, retrieved context, model outputs,
+      tool parameters, telemetry, and other information with model endpoints,
+      vector stores, data services, external application programming interfaces,
+      and other connected systems. Uncontrolled information flows can allow
+      sensitive information to leave approved boundaries or permit untrusted
+      information to reach AI components through unauthorized paths.
+    false_positives: ""
+    false_negatives: ""
+    documentable: false
+    mitigations: ""
+    severity_override_guidance: ""
+    potential_impacts: ""
+    third_party_tools: ""
+    mitigation_control: ""
+    responsibility: ""
+    ia_controls: ""
+    ccis:
+      - CCI-001414
+    fix_id: F-900003r1_fix
+    fix: >
+      Define approved information flows for the deployed AI system and enforce
+      them using application authorization, network policy, service-mesh policy,
+      data handling controls, or equivalent mechanisms. Remove or block
+      connections and data paths that are not explicitly approved.
+    check_id: C-900003r1_chk
+    check: |
+      Review the AI system data-flow documentation, network configuration,
+      application authorization policy, service-mesh policy, and connector
+      configuration.
+
+      Identify the systems with which the AI system exchanges information.
+
+      Verify that each information flow is explicitly approved and enforced by a
+      technical control.
+
+      Attempt to establish or use an unapproved information path from the AI
+      system to a connected system, or from a connected system to the AI system.
+
+      If an unapproved information flow can occur, this is a finding.
+
+  - vulnerability_id: V-900004
+    source_requirement: AC-6
+    requirement_id: AAI-000040
+    rule_id: SV-900004r1_rule
+    severity: high
+    title: The AI system must operate AI workloads with only the privileges required for assigned functions.
+    discussion: >
+      AI workloads may act on behalf of users and may be capable of retrieving
+      information, invoking tools, modifying resources, or communicating with
+      other services. Excessive runtime privileges increase the impact of prompt
+      injection, compromised dependencies, model misuse, or unintended agent
+      behavior. AI workloads must be limited to the accesses necessary to perform
+      assigned tasks.
+    false_positives: ""
+    false_negatives: ""
+    documentable: false
+    mitigations: ""
+    severity_override_guidance: ""
+    potential_impacts: ""
+    third_party_tools: ""
+    mitigation_control: ""
+    responsibility: ""
+    ia_controls: ""
+    ccis:
+      - CCI-000225
+    fix_id: F-900004r1_fix
+    fix: >
+      Remove unnecessary permissions from AI workload identities, runtime
+      processes, containers, tool integrations, and supporting services. Restrict
+      access to only the models, tools, data, commands, namespaces, endpoints, and
+      other resources required for assigned functions.
+    check_id: C-900004r1_chk
+    check: |
+      Review the privileges assigned to AI runtime processes, workload identities,
+      service accounts, containers, orchestration components, and tool
+      integrations.
+
+      Compare the assigned privileges with the documented functions of each AI
+      workload.
+
+      Verify that the workload cannot access resources or perform operations that
+      are not required for its assigned function.
+
+      If an AI workload has access or privileges that are not necessary for its
+      assigned function, this is a finding.
+
+  - vulnerability_id: V-900005
+    source_requirement: CA-7(4)
+    requirement_id: AAI-000050
+    rule_id: SV-900005r1_rule
+    severity: medium
+    title: The AI system must monitor security-relevant changes to deployed AI models and configurations.
+    discussion: >
+      The cybersecurity risk of an operational AI system can change when models
+      are replaced or retrained, model artifacts change, tools or connectors are
+      added, serving parameters are modified, or security policies and deployment
+      configurations are changed. Change monitoring allows the organization to
+      identify changes that may alter the approved risk posture of the deployed
+      AI system.
+    false_positives: ""
+    false_negatives: ""
+    documentable: false
+    mitigations: ""
+    severity_override_guidance: ""
+    potential_impacts: ""
+    third_party_tools: ""
+    mitigation_control: ""
+    responsibility: ""
+    ia_controls: ""
+    ccis:
+      - CCI-003883
+    fix_id: F-900005r1_fix
+    fix: >
+      Include security-relevant AI system changes in the continuous monitoring
+      strategy. Monitor changes to deployed model versions or digests, model
+      serving configuration, tool and connector definitions, authorization
+      policy, network policy, and other configuration elements that can alter the
+      AI system's security posture.
+    check_id: C-900005r1_chk
+    check: |
+      Review the continuous monitoring strategy and the mechanisms used to detect
+      changes to the deployed AI system.
+
+      Verify that monitoring includes security-relevant changes to deployed model
+      artifacts and AI system configuration.
+
+      Review change-monitoring records or alerts for a recent authorized change,
+      or perform an authorized test change in a test environment.
+
+      Verify that the change is detected and recorded by the monitoring
+      mechanism.
+
+      If security-relevant changes to deployed AI models or configurations are
+      outside the change-monitoring process, this is a finding.
+
+  - vulnerability_id: V-900006
+    source_requirement: CM-2
+    requirement_id: AAI-000060
+    rule_id: SV-900006r1_rule
+    severity: medium
+    title: The AI system must maintain a current baseline configuration for the deployed AI system.
+    discussion: >
+      A deployed AI system includes the model and the infrastructure and
+      configuration that make the model operational. Without a current baseline,
+      the organization cannot reliably determine whether deployed model
+      artifacts, runtime components, tool integrations, security policies, or
+      other configuration have drifted from an approved state.
+    false_positives: ""
+    false_negatives: ""
+    documentable: false
+    mitigations: ""
+    severity_override_guidance: ""
+    potential_impacts: ""
+    third_party_tools: ""
+    mitigation_control: ""
+    responsibility: ""
+    ia_controls: ""
+    ccis:
+      - CCI-000295
+    fix_id: F-900006r1_fix
+    fix: >
+      Maintain the deployed AI system under configuration control using a current
+      approved baseline. At a minimum, include the deployed model identifier,
+      version or digest, runtime image versions or digests, deployment
+      configuration, tool and connector definitions, authorization policy,
+      network policy, and other security-relevant configuration.
+    check_id: C-900006r1_chk
+    check: |
+      Review the approved baseline configuration for the deployed AI system.
+
+      Verify that the baseline identifies the deployed model artifact and the
+      infrastructure and security-relevant configuration required to operate it.
+
+      Compare the deployed AI system with the approved baseline.
+
+      If a current approved baseline does not exist, or the deployed AI system
+      cannot be reconciled to the current baseline, this is a finding.
+
+  - vulnerability_id: V-900007
+    source_requirement: CM-5
+    requirement_id: AAI-000070
+    rule_id: SV-900007r1_rule
+    severity: high
+    title: The AI system must restrict logical access to changes affecting deployed AI models and configurations.
+    discussion: >
+      Unauthorized modification of a deployed model, tool definition, system
+      prompt, retrieval configuration, policy, or deployment setting can alter
+      system behavior and security controls without changing the surrounding
+      application. Logical access to make these changes must be limited to
+      explicitly authorized identities and change mechanisms.
+    false_positives: ""
+    false_negatives: ""
+    documentable: false
+    mitigations: ""
+    severity_override_guidance: ""
+    potential_impacts: ""
+    third_party_tools: ""
+    mitigation_control: ""
+    responsibility: ""
+    ia_controls: ""
+    ccis:
+      - CCI-000345
+    fix_id: F-900007r1_fix
+    fix: >
+      Enforce logical access restrictions on repositories, registries, deployment
+      systems, model-serving configuration, tool definitions, system prompts,
+      retrieval configuration, and security policy used by the deployed AI
+      system. Limit change privileges to authorized administrators, release
+      processes, or workload identities.
+    check_id: C-900007r1_chk
+    check: |
+      Review the logical access controls for systems that can modify the deployed
+      AI model or security-relevant AI configuration.
+
+      Identify the identities and automated processes authorized to make changes.
+
+      Verify that identities without change authorization cannot modify model
+      artifacts, deployment references, tool definitions, system prompts,
+      retrieval configuration, authorization policy, or other protected
+      configuration.
+
+      If an unauthorized identity can make a protected change to the deployed AI
+      system, this is a finding.
+
+  - vulnerability_id: V-900008
+    source_requirement: IA-9
+    requirement_id: AAI-000080
+    rule_id: SV-900008r1_rule
+    severity: high
+    title: The AI system must authenticate connected services and applications before establishing communications.
+    discussion: >
+      Operational AI systems frequently depend on model gateways, retrieval
+      services, vector databases, tool services, data sources, and other
+      applications. If these services are not uniquely authenticated, an attacker
+      may impersonate a trusted AI component or redirect AI communications to an
+      unauthorized service.
+    false_positives: ""
+    false_negatives: ""
+    documentable: false
+    mitigations: ""
+    severity_override_guidance: ""
+    potential_impacts: ""
+    third_party_tools: ""
+    mitigation_control: ""
+    responsibility: ""
+    ia_controls: ""
+    ccis:
+      - CCI-002022
+    fix_id: F-900008r1_fix
+    fix: >
+      Configure the AI system to uniquely authenticate model services, tool
+      services, retrieval services, data services, and other applications before
+      establishing communications. Use an organization-approved service
+      authentication mechanism appropriate to the deployment architecture.
+    check_id: C-900008r1_chk
+    check: |
+      Review the service-to-service communication paths used by the deployed AI
+      system.
+
+      Verify that connected model, tool, retrieval, data, and supporting services
+      are uniquely authenticated before communications are established.
+
+      Attempt to connect to a protected AI service without a valid service
+      identity, or using an untrusted service identity.
+
+      If the AI system establishes trusted communications with a service or
+      application that has not been uniquely authenticated, this is a finding.
+
+  - vulnerability_id: V-900009
+    source_requirement: SC-7(5)
+    requirement_id: AAI-000090
+    rule_id: SV-900009r1_rule
+    severity: high
+    title: The AI system must deny network communications by default and allow only explicitly authorized communications.
+    discussion: >
+      AI systems may communicate with model endpoints, tool services, data
+      stores, telemetry services, and external application programming
+      interfaces. Default-permit connectivity increases the attack surface and
+      can allow unauthorized ingress, data exfiltration, or access to unapproved
+      external services. Managed interfaces must use a deny-by-default,
+      allow-by-exception posture.
+    false_positives: ""
+    false_negatives: ""
+    documentable: false
+    mitigations: ""
+    severity_override_guidance: ""
+    potential_impacts: ""
+    third_party_tools: ""
+    mitigation_control: ""
+    responsibility: ""
+    ia_controls: ""
+    ccis:
+      - CCI-001109
+    fix_id: F-900009r1_fix
+    fix: >
+      Configure firewalls, security groups, network policies, service-mesh
+      policies, egress controls, or equivalent managed interfaces to deny AI
+      system network communications by default. Explicitly allow only the
+      inbound and outbound communications required for authorized AI system
+      functions.
+    check_id: C-900009r1_chk
+    check: |
+      Review the managed network interfaces protecting the AI system, including
+      ingress and egress controls.
+
+      Verify that the default network policy is deny and that required
+      communications are implemented as explicit exceptions.
+
+      Attempt to establish an unapproved inbound or outbound network connection
+      to or from the AI system.
+
+      If network communications are permitted by default, or an unapproved
+      connection is permitted, this is a finding.
+
+  - vulnerability_id: V-900010
+    source_requirement: SC-13 / SC-28
+    requirement_id: AAI-000100
+    rule_id: SV-900010r1_rule
+    severity: high
+    title: The AI system must protect AI information in transit with approved cryptography and protect required AI information at rest.
+    discussion: >
+      Deployed AI systems process and store model artifacts, prompts, retrieved
+      context, tool inputs and outputs, telemetry, and other information that may
+      require confidentiality or integrity protection. Unprotected communications
+      may expose or permit modification of AI information in transit, while
+      inadequate protection at rest may expose or permit modification of stored
+      AI information and configuration.
+    false_positives: ""
+    false_negatives: ""
+    documentable: false
+    mitigations: ""
+    severity_override_guidance: ""
+    potential_impacts: ""
+    third_party_tools: ""
+    mitigation_control: ""
+    responsibility: ""
+    ia_controls: ""
+    ccis:
+      - CCI-002450
+      - CCI-001199
+    fix_id: F-900010r1_fix
+    fix: >
+      Identify AI communications that require cryptographic protection and
+      configure organization-approved cryptography for those uses. Identify AI
+      information at rest that requires confidentiality or integrity protection
+      and configure the storage mechanisms necessary to provide that protection.
+      Apply these protections to model artifacts, AI configuration, prompts,
+      retrieved context, outputs, and other AI information according to
+      organizational requirements.
+    check_id: C-900010r1_chk
+    check: |
+      Review the AI system's communications and storage configuration.
+
+      Identify the AI communications for which cryptographic protection is
+      required and verify that the configured cryptography satisfies
+      organizational requirements.
+
+      Identify AI information at rest that requires confidentiality or integrity
+      protection and verify that the required protections are implemented.
+
+      If a communication requiring cryptographic protection does not use the
+      required cryptography, or information at rest requiring confidentiality or
+      integrity protection is not protected, this is a finding.

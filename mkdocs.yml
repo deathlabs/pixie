@@ -1,0 +1,7 @@
+---
+site_name: Pixie
+docs_dir: docs
+theme:
+  name: readthedocs
+nav:
+  - "Use Cases": use-cases/README.md
