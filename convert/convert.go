@@ -3,6 +3,8 @@ package convert
 import (
 	"bytes"
 	"encoding/xml"
+	"errors"
+	"io"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -356,27 +358,48 @@ func marshalCheck(check cdf.CheckType) checkXML {
 
 func loadConfig(path string) (*config, error) {
 	var (
-		config  config
-		decoder *yaml.Decoder
-		err     error
-		file    *os.File
+		err  error
+		file *os.File
 	)
 
 	file, err = os.Open(path)
 	if err != nil {
 		return nil, err
 	}
-	defer file.Close()
+	return loadConfigFromReader(file)
+}
 
-	decoder = yaml.NewDecoder(file)
+func loadConfigFromReader(reader io.ReadCloser) (result *config, err error) {
+	var (
+		closeErr      error
+		configuration config
+		decoder       *yaml.Decoder
+	)
+
+	defer func() {
+		closeErr = reader.Close()
+		if closeErr == nil {
+			return
+		}
+
+		if err == nil {
+			err = closeErr
+
+			return
+		}
+
+		err = errors.Join(err, closeErr)
+	}()
+
+	decoder = yaml.NewDecoder(reader)
 	decoder.KnownFields(true)
 
-	err = decoder.Decode(&config)
+	err = decoder.Decode(&configuration)
 	if err != nil {
 		return nil, err
 	}
 
-	return &config, nil
+	return &configuration, nil
 }
 
 func buildBenchmark(config *config) *cdf.Benchmark {
